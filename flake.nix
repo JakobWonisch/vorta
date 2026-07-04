@@ -91,6 +91,33 @@
             mainProgram = "vorta";
           };
         };
+
+        # PyPI PyQt6 ships its own Qt; only expose non-Qt system libs it links against.
+        devShellInputs = with pkgs; [
+          stdenv.cc.cc.lib
+          glib
+          fontconfig
+          freetype
+          libx11
+          libGL
+          libxkbcommon
+          libdrm
+          zlib
+          zstd
+          dbus
+          brotli
+          krb5
+          pcsclite
+          libpulseaudio
+          wayland
+          libxcb
+          libxcb-util
+          libxcb-cursor
+          libxcb-image
+          libxcb-keysyms
+          libxcb-render-util
+          libxcb-wm
+        ];
       in
       {
         packages.default = vorta;
@@ -102,30 +129,30 @@
         };
 
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            borgbackup
-            uv
+          packages = [
+            pkgs.borgbackup
+            pkgs.uv
             python
-            pre-commit
-            ruff
+            pkgs.pre-commit
+            pkgs.ruff
           ];
 
-          nativeBuildInputs = with pkgs; [
-            qt6.wrapQtAppsHook
-          ];
-
-          buildInputs = with pkgs; [
-            qt6.qtsvg
-            qt6.qtwayland
-          ];
+          buildInputs = devShellInputs;
 
           shellHook = ''
-            export QT_PLUGIN_PATH="${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.qtPluginPrefix}"
-            echo "Vorta dev shell"
+            export UV_PYTHON="${python}/bin/python3"
+            export LD_LIBRARY_PATH="${lib.makeLibraryPath devShellInputs}${
+              lib.optionalString (builtins.getEnv "LD_LIBRARY_PATH" != "") ":${builtins.getEnv "LD_LIBRARY_PATH"}"
+            }"
+            if [ -d .venv/lib/python3.12/site-packages/PyQt6/Qt6/plugins ]; then
+              export QT_PLUGIN_PATH="$PWD/.venv/lib/python3.12/site-packages/PyQt6/Qt6/plugins"
+            fi
+            echo "Vorta dev shell (Python ${python.version})"
             echo "  uv sync          # install Python deps"
             echo "  uv run vorta     # run from source"
             echo "  make test        # run tests"
             echo "  nix build        # build the package"
+            echo "  nix run          # run the Nix-built package (not live source)"
           '';
         };
 
