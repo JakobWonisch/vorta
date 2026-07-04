@@ -51,6 +51,22 @@ class TrayMenu(QSystemTrayIcon):
 
         menu.addSeparator()
 
+        if self.app.is_enduser_mode():
+            if self.app.jobs_manager.is_worker_running():
+                status = menu.addAction(self.tr('Task in progress'))
+                status.setEnabled(False)
+                cancel_action = menu.addAction(self.tr('Cancel Backup'))
+                cancel_action.triggered.connect(self.app.backup_cancelled_event.emit)
+            else:
+                profile = self.app.get_enduser_profile()
+                backup_action = menu.addAction(self.tr('Backup Now'))
+                backup_action.triggered.connect(lambda state, i=profile.id: self.app.create_backup_action(i))
+
+            menu.addSeparator()
+            exit_action = menu.addAction(self.tr('Quit'))
+            exit_action.triggered.connect(self.app.quit)
+            return
+
         next_task_time = self.app.scheduler.next_job()
         status = menu.addAction(next_task_time)
         status.setEnabled(False)

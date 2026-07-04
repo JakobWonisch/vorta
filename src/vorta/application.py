@@ -23,6 +23,7 @@ from vorta.store.models import BackupProfileModel, SettingsModel
 from vorta.tray_menu import TrayMenu
 from vorta.utils import borg_compat, parse_args
 from vorta.views.main_window import MainWindow
+from vorta.views.simple_window import SimpleWindow
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,9 @@ class VortaApp(QtSingleApplication):
         # Prepare tray and main window
         self.tray = TrayMenu(self)
         self.main_window = MainWindow(self)
+        self.simple_window = None
+        if self.is_enduser_mode():
+            self.simple_window = SimpleWindow(self)
 
         if getattr(args, 'daemonize', False):
             pass
@@ -91,6 +95,31 @@ class VortaApp(QtSingleApplication):
         if sys.platform == 'darwin':
             self.check_darwin_permissions()
 
+    def is_enduser_mode(self) -> bool:
+        return SettingsModel.get(key='enduser_mode').value
+
+    def get_enduser_profile(self) -> BackupProfileModel:
+        profile_id = SettingsModel.get(key='enduser_profile_id').str_value
+        profile = BackupProfileModel.get_or_none(id=profile_id)
+        if profile is None:
+            profile = BackupProfileModel.select().first()
+        return profile
+
+    def apply_enduser_mode(self) -> None:
+        if self.is_enduser_mode():
+            if self.simple_window is None:
+                self.simple_window = SimpleWindow(self)
+            self.main_window.hide()
+            self.simple_window.show()
+            self.simple_window.raise_()
+            self.simple_window.activateWindow()
+        else:
+            if self.simple_window is not None:
+                self.simple_window.hide()
+            self.main_window.show()
+            self.main_window.raise_()
+            self.main_window.activateWindow()
+
     def create_backups_cmdline(self, profile_name):
         profile = BackupProfileModel.get_or_none(name=profile_name)
         if profile is not None:
@@ -104,6 +133,8 @@ class VortaApp(QtSingleApplication):
 
     def quit_app_action(self):
         self.backup_cancelled_event.emit()
+        if self.simple_window is not None:
+            del self.simple_window
         del self.main_window
         self.tray.deleteLater()
         del self.tray
@@ -111,7 +142,10 @@ class VortaApp(QtSingleApplication):
 
     def create_backup_action(self, profile_id=None):
         if not profile_id:
-            profile_id = self.main_window.current_profile.id
+            if self.is_enduser_mode():
+                profile_id = self.get_enduser_profile().id
+            else:
+                profile_id = self.main_window.current_profile.id
 
         profile = BackupProfileModel.get(id=profile_id)
 
@@ -135,13 +169,24 @@ class VortaApp(QtSingleApplication):
             return None
 
     def open_main_window_action(self):
+        if self.is_enduser_mode() and self.simple_window is not None:
+            self.simple_window.show()
+            self.simple_window.raise_()
+            self.simple_window.activateWindow()
+        else:
+            self.main_window.show()
+            self.main_window.raise_()
+            self.main_window.activateWindow()
+
+    def open_advanced_window_action(self):
         self.main_window.show()
         self.main_window.raise_()
         self.main_window.activateWindow()
 
     def toggle_main_window_visibility(self):
-        if self.main_window.isVisible():
-            self.main_window.close()
+        window = self.simple_window if self.is_enduser_mode() and self.simple_window is not None else self.main_window
+        if window.isVisible():
+            window.close()
         else:
             self.open_main_window_action()
 

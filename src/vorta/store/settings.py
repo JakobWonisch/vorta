@@ -22,6 +22,7 @@ def get_misc_settings() -> list[dict[str, Any]]:
     # groups
     notifications = trans_late('settings', 'Notifications')
     startup = trans_late('settings', 'Startup')
+    enduser = trans_late('settings', 'End-user mode')
     information = trans_late('settings', 'Information')
     security = trans_late('settings', 'Security')
     updates = trans_late('settings', 'Updates')
@@ -60,6 +61,23 @@ def get_misc_settings() -> list[dict[str, Any]]:
                 'settings',
                 'Make Vorta appear on screen instead of minimizing to system tray',
             ),
+        },
+        {
+            'key': 'enduser_mode',
+            'value': False,
+            'type': 'checkbox',
+            'group': enduser,
+            'label': trans_late('settings', 'Use simplified end-user interface'),
+            'tooltip': trans_late(
+                'settings',
+                'Show a minimal window for backups only. Configure the profile and repository first.',
+            ),
+        },
+        {
+            'key': 'enduser_profile_id',
+            'str_value': '1',
+            'type': 'internal',
+            'label': 'End-user mode profile',
         },
         {
             'key': 'get_srcpath_datasize',

@@ -108,3 +108,12 @@ class MiscTab(BaseTab, MiscTabBase, MiscTabUI):
         setting = SettingsModel.get(key=key)
         setting.value = bool(new_value)
         setting.save()
+
+        if key == 'enduser_mode' and new_value:
+            profile = self.profile()
+            SettingsModel.update({SettingsModel.str_value: str(profile.id)}).where(
+                SettingsModel.key == 'enduser_profile_id'
+            ).execute()
+
+        if key == 'enduser_mode':
+            self.app.apply_enduser_mode()
